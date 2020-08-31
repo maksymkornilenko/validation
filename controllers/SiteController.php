@@ -4,13 +4,14 @@ namespace app\controllers;
 
 use app\models\Queue;
 use app\models\SignupForm;
+use app\models\User;
 use Yii;
+use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
-use app\models\ContactForm;
 
 class SiteController extends Controller
 {
@@ -83,6 +84,9 @@ class SiteController extends Controller
 
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
+            $user=User::findOne(Yii::$app->user->getId());
+            $user->last_visit=0;
+            $user->save();
             return $this->goBack();
         }
 
@@ -98,6 +102,9 @@ class SiteController extends Controller
      */
     public function actionStartValidation($type)
     {
+        if (Yii::$app->user->isGuest) {
+            return $this->render('index');
+        }
         $mainModel = Queue::validationQueue($type);
         if ($mainModel['request'] === 'view') {
             return $this->render('validation',['modelQuest'=>$mainModel['modelQuest'], 'model'=>$mainModel['model'], 'modelInput'=>$mainModel['modelInput']]);
@@ -115,6 +122,9 @@ class SiteController extends Controller
      */
     public function actionLogout()
     {
+        $user=User::findOne(Yii::$app->user->getId());
+        $user->last_visit=time();
+        $user->save();
         Yii::$app->user->logout();
 
         return $this->goHome();
@@ -125,15 +135,17 @@ class SiteController extends Controller
      *
      * @return Response|string
      */
-    public function actionContact()
+    public function actionProfile($id=null)
     {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+        if (Yii::$app->user->isGuest) {
+            return $this->render('index');
         }
-        return $this->render('contact', [
+        if (!$id){
+            $id=Yii::$app->user->getId();
+        }
+        $model = User::findOne($id);
+
+        return $this->render('profile', [
             'model' => $model,
         ]);
     }
@@ -143,9 +155,20 @@ class SiteController extends Controller
      *
      * @return string
      */
-    public function actionAbout()
+    public function actionStatistic()
     {
-        return $this->render('about');
+        if (Yii::$app->user->isGuest) {
+            return $this->render('index');
+        }
+        $queue=Queue::find()->select('category.id, category.name, count(queue.id) as count')->leftJoin('category','queue.category_id=category.id')->where(['is_valid'=>1])->groupBy(['category.id'])->asArray()->all();
+        $users=User::find();
+        $provider = new ActiveDataProvider([
+            'query' => $users,
+            'pagination' => [
+                'pageSize' => 10,
+            ],
+        ]);
+        return $this->render('statistic',['provider'=>$provider,'queue'=>$queue]);
     }
     public function actionAddAdmin() {
         $model = User::find()->where(['username' => 'admin'])->one();

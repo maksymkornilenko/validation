@@ -37,10 +37,10 @@ class UploadForm extends Model
             }
 
         }
-        $newQueue->created_at=time();
+        $newQueue->created_at = time();
         if ($newQueue->save(false)){
             $file->saveAs(\Yii::getAlias('@webroot') . $newQueue->path_file);
-            return true;
+            return json_encode(['id'=>$newQueue->id,'date_create'=>$newQueue->created_at]);
         }else{
             return false;
         }
