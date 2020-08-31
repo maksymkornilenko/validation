@@ -55,10 +55,12 @@ $this->params['breadcrumbs'][] = $this->title;
                 Последнее посещение
             </div>
             <div class="col-lg-6">
-                <?php if ($model->last_visit==0){
+                <?php if ($model->last_visit===0){
                     echo 'Online';
-                }else{
+                }else if ($model->last_visit>0){
                     echo date('d-m-Y H:i:s', $model->last_visit);
+                }else{
+                    echo 'Not Sign in';
                 }?>
             </div>
         </div>
